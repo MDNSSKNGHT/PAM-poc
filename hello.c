@@ -3,13 +3,12 @@
 
 void my_function()
 {
-	printf("Hello, World! %p\n", mmap);
+	printf("Hello, World!\n");
 }
 
 int main(void)
 {
-	/*while (1) my_function();*/
-	my_function();
+	while (1) my_function();
 
 	return 0;
 }
