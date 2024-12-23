@@ -4,13 +4,13 @@ TARGETS = poc hello
 
 all: $(TARGETS) libhello.so
 
-poc: poc.c
+poc: poc.c proc.c
 hello: hello.c
 
 $(TARGETS):
 	$(CC) $(CFLAGS) -o $@ $^
 
-libhello.so: lib.c
+libhello.so: lib.c proc.c
 	$(CC) $(CFLAGS) -o $@ -shared -fPIC $^
 
 .PHONY: clean

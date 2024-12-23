@@ -13,6 +13,8 @@
 
 #define DEBUG 1
 
+extern unsigned long module_address(pid_t pid, int prot, const char *name);
+
 unsigned long ptrace_checked(enum __ptrace_request request, pid_t pid, void *addr,
 		void *data)
 {
@@ -22,56 +24,6 @@ unsigned long ptrace_checked(enum __ptrace_request request, pid_t pid, void *add
 			request, pid, addr, data, ret);
 #endif
 	return ret;
-}
-
-unsigned long maps_address(pid_t pid, int prot, const char *name)
-{
-	FILE *f;
-	char *proc, *line, permissions[4];
-	size_t n;
-	unsigned long address;
-	unsigned int oflag = 0;
-
-	if (pid == -1) {
-		proc = strdup("/proc/self/maps");
-	} else {
-		asprintf(&proc, "/proc/%d/maps", pid);
-	}
-
-	f = fopen(proc, "r");
-
-	while (getline(&line, &n, f) != EOF) {
-		if (strstr(line, name) != NULL) {
-			sscanf(line, "%lx-%*x %s %*s %*s %*s %*s", &address, permissions);
-
-			if (prot == -1)
-				break;
-
-			for (int i = 0; permissions[i] != 'p'; i++) {
-				switch (permissions[i]) {
-				case 'r':
-					oflag |= PROT_READ;
-					break;
-				case 'w':
-					oflag |= PROT_WRITE;
-					break;
-				case 'x':
-					oflag |= PROT_EXEC;
-					break;
-				default:
-					break;
-				}
-			}
-
-			if (prot == oflag)
-				break;
-		}
-	}
-
-	fclose(f);
-	free(proc);
-
-	return address;
 }
 
 int main(int argc, char *argv[])
@@ -135,7 +87,7 @@ int main(int argc, char *argv[])
 
 		{
 			/* Get the target's entry point within its own memory space. */
-			entry_point += maps_address(child, PROT_READ | PROT_EXEC, argv[1]);
+			entry_point += module_address(child, PROT_READ | PROT_EXEC, argv[1]);
 
 			printf("entry point address `_start()` of target is: 0x%lx\n", entry_point);
 
@@ -156,8 +108,8 @@ int main(int argc, char *argv[])
 			unsigned long remote_mmap;
 			{
 				/* Get the remote address of `mmap()` */
-				local_libc = maps_address(-1, PROT_READ | PROT_EXEC, "libc.so");
-				remote_libc = maps_address(child, PROT_READ | PROT_EXEC, "libc.so");
+				local_libc = module_address(-1, PROT_READ | PROT_EXEC, "libc.so");
+				remote_libc = module_address(child, PROT_READ | PROT_EXEC, "libc.so");
 				unsigned long local_mmap = (unsigned long)mmap;
 				/* 
 				 * Why? So we avoid getting the offset directly from libc.so every time there's an update
